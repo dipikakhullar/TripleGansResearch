@@ -1,10 +1,8 @@
 # TripleGAN-Tensorflow
 Simple Tensorflow implementation of [Triple Generative Adversarial Nets](https://arxiv.org/pdf/1703.02291.pdf)(Triple-GAN)
 
-If you want to see the original author's code, please refer to this [link](https://github.com/zhenxuan00/triple-gan)
-
-## Issue
-* I am now modifying the ***weight normalization*** (If you know how to implement with tensorflow, let me know)
+Original author's code, please refer to this [link](https://github.com/zhenxuan00/triple-gan)
+This codebase was modified on top of: https://github.com/taki0112/TripleGAN-Tensorflow
 
 ## Usage
 ```bash
@@ -43,6 +41,3 @@ If you want to see the original author's code, please refer to this [link](https
 
 ## Reference
 * [tensorflow-generative-model-collections](https://github.com/hwalsuklee/tensorflow-generative-model-collections)
-
-## Author
-Junho Kim
