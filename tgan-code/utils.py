@@ -7,6 +7,9 @@ import scipy
 import imageio
 import numpy as np
 
+import warnings
+warnings.filterwarnings("ignore")
+
 def rampup(epoch):
     if epoch < 80:
         p = max(0.0, float(epoch)) / float(80)
@@ -31,8 +34,63 @@ def create_data_subsets(path, percent_train, percent_label):
     test_list = all_files[train_threshold:]
     labelled_list = train_list[:label_threshold]
     unlabelled_list = train_list[label_threshold:]
-    
     return labelled_list, unlabelled_list, test_list
+
+# def create_data_subsets(path=None, percent_train, percent_label):
+#     (train_data, train_labels), (test_data, test_labels) = tf.keras.datasets.cifar10.load_data() #cifar10.load_data()
+#     train_data, test_data = color_preprocessing(train_data, test_data) # pre-processing
+
+#     criteria = n//10
+#     input_dict, labelled_x, labelled_y, unlabelled_x, unlabelled_y = defaultdict(int), list(), list(), list(), list()
+
+#     for image, label in zip(train_data,train_labels) :
+#         if input_dict[int(label)] != criteria :
+#             input_dict[int(label)] += 1
+#             labelled_x.append(image)
+#             labelled_y.append(label)
+
+#         unlabelled_x.append(image)
+#         unlabelled_y.append(label)
+
+
+#     labelled_x = np.asarray(labelled_x)
+#     labelled_y = np.asarray(labelled_y)
+#     unlabelled_x = np.asarray(unlabelled_x)
+#     unlabelled_y = np.asarray(unlabelled_y)
+
+#     print("labelled data:", np.shape(labelled_x), np.shape(labelled_y))
+#     print("unlabelled data :", np.shape(unlabelled_x), np.shape(unlabelled_y))
+#     print("Test data :", np.shape(test_data), np.shape(test_labels))
+#     print("======Load finished======")
+
+#     print("======Shuffling data======")
+#     indices = np.random.permutation(len(labelled_x))
+#     labelled_x = labelled_x[indices]
+#     labelled_y = labelled_y[indices]
+
+#     indices = np.random.permutation(len(unlabelled_x))
+#     unlabelled_x = unlabelled_x[indices]
+#     unlabelled_y = unlabelled_y[indices]
+
+#     print("======Prepare Finished======")
+
+
+#     labelled_y_vec = np.zeros((len(labelled_y), 10), dtype=np.float)
+#     for i, label in enumerate(labelled_y) :
+#         labelled_y_vec[i, labelled_y[i]] = 1.0
+
+#     unlabelled_y_vec = np.zeros((len(unlabelled_y), 10), dtype=np.float)
+#     for i, label in enumerate(unlabelled_y) :
+#         unlabelled_y_vec[i, unlabelled_y[i]] = 1.0
+
+#     test_labels_vec = np.zeros((len(test_labels), 10), dtype=np.float)
+#     for i, label in enumerate(test_labels) :
+#         test_labels_vec[i, test_labels[i]] = 1.0
+
+
+#     return labelled_x, labelled_y_vec, unlabelled_x, unlabelled_y_vec, test_data, test_labels_vec
+    
+#     return labelled_list, unlabelled_list, test_list
 
 def save_images(images, size, image_path):
     return imsave(inverse_transform(images), size, image_path)

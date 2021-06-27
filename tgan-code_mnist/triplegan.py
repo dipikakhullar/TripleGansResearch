@@ -1,6 +1,9 @@
 import tensorflow as tf
 import keras
 import tensorflow.compat.v1 as tf1
+
+tf1.disable_v2_behavior() 
+
 import numpy as np
 #import tqdm as tqdm
 #import pickle
@@ -13,52 +16,48 @@ import matplotlib.pyplot as plt
 from tensorflow.keras.layers import Dense, Input, Conv2D, BatchNormalization, Dropout, Flatten, GaussianNoise, Softmax
 from tensorflow.keras.layers import LeakyReLU, concatenate, Reshape, Conv2DTranspose, AveragePooling2D, MaxPooling2D
 
-import warnings
-warnings.filterwarnings("ignore")
-
 
 tf.compat.v1.disable_eager_execution()
-path = "/Users/dipika/Desktop/TripleGansResearch/tgan-code/cifar10/all_train_int_0"
-# path = "/content/drive/My Drive/TripleGansResearch/tgan-code/UTKFace"
 
+from keras.datasets import cifar10
+(x_train, y_train), (x_test, y_test) = cifar10.load_data()
+x_train = (x_train/255.0) - 0.5
+x_test = (x_test/255.0) - 0.5
+y_train = keras.utils.to_categorical(y_train,10)
+y_test = keras.utils.to_categorical(y_test,10)
 
-labelled_list, unlabelled_list, test_list = create_data_subsets(path, 80, 50)
-# print("LABELLED LIST:       ", type(labelled_list), labelled_list[0])
-# print("UNLABELLED LIST:       ", type(unlabelled_list), unlabelled_list[0])
-# print("TEST LIST:       ", test_list, type(test_list), test_list[0])
+# print(x_train)
+# print(y_train)
 
+labelled_x, labelled_y, unlabelled_x, unlabelled_y, test_x, test_y = create_data_subsets(0.5, 
+    x_train = x_train, y_train = y_train,
+    x_test = x_test, y_test = y_test)
+# labelled_x, labelled_y, unlabelled_x, unlabelled_y, test_x, test_y = create_data_subsets(0.5)
 
-def generate_one_batch(path, data, batch_size, lbl = labelled_list, unlbl = unlabelled_list, tst = test_list):
-
-    # Num samples, input heigh, width, channels. 
-    X = np.empty((batch_size, 32, 32, 3))
-    y = np.empty((batch_size), dtype=int)
+def generate_one_batch(data, batchsize,
+                       labelled_x = labelled_x, labelled_y = labelled_y,
+                       unlabelled_x = unlabelled_x, unlabelled_y = unlabelled_y,
+                       test_x = test_x, test_y = test_y):
     
-    if data == 'labelled':
-        list_ids = random.sample(lbl, batch_size)
-    if data == 'unlabelled':
-        list_ids = random.sample(unlbl, batch_size)
-    if data == 'test':
-        list_ids = random.sample(tst, batch_size)
+    if data == "labelled":
+        dataset_x = labelled_x
+        dataset_y = labelled_y
+    if data == "unlabelled":
+        dataset_x = unlabelled_x
+        dataset_y = unlabelled_y
+    if data == "test":
+        dataset_x = test_x
+        dataset_y = test_y
     
-    for i, ID in enumerate(list_ids):
-        # print("list ids: ", len(list_ids))
-        # print(i)
-        f_path = os.path.join(path, ID)
-        X[i,] = np.array(Image.open(f_path))
-        cl = ID.split('_')[0]
-        # print("split", ID.split('_'))
-        y[i] = int(cl)
-        # print("class: ", cl)
-        
-        X = X.astype(np.float32)
-        X = (X/127.5) - 1
-        
-    return X, keras.utils.to_categorical(y, num_classes = 10)
+    sample_ids = random.sample(range(len(dataset_x)), batchsize)
+    X_id = dataset_x[sample_ids]
+    Y_id = dataset_y[sample_ids]
+    
+    return X_id, Y_id
 
 
 class TripleGAN(object):
-    def __init__(self, sess, epoch, batch_size, unlabel_batch_size, latent_dim, gan_lr, cla_lr, checkpoint_dir, result_dir, log_dir, path):
+    def __init__(self, sess, epoch, batch_size, unlabel_batch_size, latent_dim, gan_lr, cla_lr, checkpoint_dir, result_dir, log_dir):
         
         self.sess = sess
         self.checkpoint_dir = checkpoint_dir
@@ -67,7 +66,7 @@ class TripleGAN(object):
         self.epoch = epoch
         self.batch_size = batch_size
         self.unlabelled_batch_size = unlabel_batch_size
-        self.test_batch_size = 8
+        self.test_batch_size = 32
         self.model_name = "Triple GAN"
         self.input_height = 32
         self.input_width = 32
@@ -76,7 +75,7 @@ class TripleGAN(object):
         self.latent_dim = latent_dim
         self.num_classes = 10
         self.c_dim = 3
-        self.path = path
+        #self.path = path
         
         self.learning_rate = gan_lr
         self.cla_learning_rate = cla_lr
@@ -84,7 +83,11 @@ class TripleGAN(object):
         self.beta1 = 0.9
         self.beta2 = 0.999
         self.epsilon = 1e-8
+
+        # alpha, epsilon, beta.
         self.alpha = 0.5
+
+        # extra term in the classifier loss. Rp in page 5 of paper. 
         self.alpha_cla_adv = 0.01
         self.init_alpha_p = 0.0
         self.apply_alpha_p = 0.1
@@ -94,7 +97,7 @@ class TripleGAN(object):
         self.sample_num = 64
         self.visual_num = 100
         self.len_discrete_code = 10
-        self.num_batches = 9483//self.batch_size
+        self.num_batches = 25000//self.batch_size
         
     def discriminator(self, x, y_, is_train):
         x = GaussianNoise(0.15, name = 'dis0')(x)
@@ -169,7 +172,6 @@ class TripleGAN(object):
         x = Dense(512, activation = 'relu', name = 'cla20')(x)
         x = Dense(128, activation = 'relu', name = 'cla21')(x)
         
-        # number of claseses???
         label = Dense(10, name = 'cla22')(x)
         
         return label
@@ -260,7 +262,7 @@ class TripleGAN(object):
         d_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_real_logits, labels=tf.ones_like(D_real)))
         d_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake_logits, labels=tf.zeros_like(D_fake)))
         d_loss_cla = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_unlabelled_logits, labels=tf.zeros_like(D_unlabelled)))
-        self.d_loss = 100000*(d_loss_real + (1-alpha)*d_loss_fake + alpha*d_loss_cla)
+        self.d_loss = d_loss_real + (1-alpha)*d_loss_fake + alpha*d_loss_cla
     
         # get loss for generator
         #### Zeros or ones
@@ -321,7 +323,16 @@ class TripleGAN(object):
         
         # graph inputs for visualize training results
         self.sample_z = np.random.uniform(-1, 1, size=(self.visual_num, self.latent_dim))
-        self.test_samples, self.test_codes = generate_one_batch(path, 'labelled', self.visual_num)
+
+
+
+        '''
+        def generate_one_batch(data, batchsize,
+                       labelled_x = labelled_x, labelled_y = labelled_y,
+                       unlabelled_x = unlabelled_x, unlabelled_y = unlabelled_y,
+                       test_x = test_x, test_y = test_y):
+                       '''
+        self.test_samples, self.test_codes = generate_one_batch('labelled', self.visual_num)
         
         #saver to save model
         self.saver = tf1.train.Saver()
@@ -372,8 +383,9 @@ class TripleGAN(object):
         
         
             for idx in range(start_batch_id, self.num_batches):
-                batch_images, batch_codes = generate_one_batch(self.path, "labelled", self.batch_size)
-                batch_unlabelled_images, batch_unlabelled_images_y = generate_one_batch(self.path, "unlabelled", self.unlabelled_batch_size)
+            # for idx in range(0, 10):
+                batch_images, batch_codes = generate_one_batch( "labelled", self.batch_size)
+                batch_unlabelled_images, batch_unlabelled_images_y = generate_one_batch("unlabelled", self.unlabelled_batch_size)
                 batch_z = np.random.uniform(1, size = (self.batch_size, self.latent_dim))
 
                 feed_dict = {
@@ -398,7 +410,8 @@ class TripleGAN(object):
                 
                 # display training status
                 counter += 1
-                print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f, c_loss: %.8f" \
+                if idx%500 ==0:
+                    print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f, c_loss: %.8f" \
                       % (epoch, idx, self.num_batches, time.time() - start_time, d_loss, g_loss, c_loss))
                 
                 # save training results for every 100 steps
@@ -417,7 +430,7 @@ class TripleGAN(object):
             test_acc = 0.0
 
             for idx in range(10) :
-                test_batch_x, test_batch_y = generate_one_batch(self.path, 'test', self.test_batch_size)
+                test_batch_x, test_batch_y = generate_one_batch('test', self.test_batch_size)
                 
                 acc_ = self.sess.run(self.accuracy, feed_dict={
                         self.test_inputs: test_batch_x,
