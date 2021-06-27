@@ -19,15 +19,46 @@ from tensorflow.keras.layers import LeakyReLU, concatenate, Reshape, Conv2DTrans
 
 tf.compat.v1.disable_eager_execution()
 
-from keras.datasets import cifar10
-(x_train, y_train), (x_test, y_test) = cifar10.load_data()
+from keras.datasets import mnist
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+print("MNIST X TRAIN", x_train.shape == (60000, 28, 28))
+print("MNIST X TEST", x_test.shape == (10000, 28, 28))
+print("MNIST Y TRAIN", y_train.shape == (60000,))
+print("MNIST Y TEST", y_test.shape == (10000,))
+
 x_train = (x_train/255.0) - 0.5
 x_test = (x_test/255.0) - 0.5
 y_train = keras.utils.to_categorical(y_train,10)
 y_test = keras.utils.to_categorical(y_test,10)
 
+x_train = x_train.reshape((60000, 28, 28, 1))
+x_train = x_train.repeat(3, -1)  # repeat the last (-1) dimension three times
+assert x_train.shape == (60000, 28, 28, 3)
+
+x_test = x_test.reshape((10000, 28, 28, 1))
+x_test = x_test.repeat(3, -1)  # repeat the last (-1) dimension three times
+
+"""
+not sure why converting to graysccale and expanding dimensions won't work. 
+"""
+# TODO: Ask Dheeraj if it it is okay to replicate the last dimension as above
+
+# x_train = tf.image.grayscale_to_rgb(tf.expand_dims(x_train, axis=3))
+# x_train = tf.compat.v1.to_float(x_train)
+# print("X SHAPe:    ", x_train.shape)
+
+# x_train = x_train.reshape(x_train.shape[0], 28, 28, 1)
+# x_test = x_test.reshape(x_test.shape[0], 28, 28, 1)
+
+# xtrain = x_train.astype('float32')
+# x_test = x_test.astype('float32')
+
+# x_train/=255
+# x_test/=255
 # print(x_train)
 # print(y_train)
+
+print("*** DATA LOADING COMPLETE ***")
 
 labelled_x, labelled_y, unlabelled_x, unlabelled_y, test_x, test_y = create_data_subsets(0.5, 
     x_train = x_train, y_train = y_train,
@@ -68,10 +99,10 @@ class TripleGAN(object):
         self.unlabelled_batch_size = unlabel_batch_size
         self.test_batch_size = 32
         self.model_name = "Triple GAN"
-        self.input_height = 32
-        self.input_width = 32
-        self.output_height = 32
-        self.output_width = 32
+        self.input_height = 28
+        self.input_width = 28
+        self.output_height = 28
+        self.output_width = 28
         self.latent_dim = latent_dim
         self.num_classes = 10
         self.c_dim = 3
